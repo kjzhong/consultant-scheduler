@@ -150,9 +150,8 @@ def fillclass(schedule, consultant_avail):
     for i in schedule:
         d = {}
         for consultant in consultant_avail:
-            if consultant in flatten(assignments.values()):
-                pass
-            else:
+
+            if consultant not in flatten(assignments.values()):
                 # values we have to ignore
                 ignore = set(i).union(set(assignments.keys()))
                 # intersect consultant availabilities with schedule

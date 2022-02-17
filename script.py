@@ -29,30 +29,34 @@ consultant_df = pd.read_excel(
 lead_consultant_df = process_data(lead_consultant_df)
 consultant_df = process_data(consultant_df)
 
-# print(consultant_df)
-c_avail = consultant_df.to_dict("index")
-
-for consultant in c_avail:
-    c_avail[consultant] = [
-        j for j in c_avail[consultant].keys() if c_avail[consultant][j] != 0
-    ]
+# create dictionary with consultant availabilities
+consultant_avail = consultant_df.to_dict("index")
+lead_consultant_avail = lead_consultant_df.to_dict("index")
 
 
-# Make 2 fake consultants for a mvp.
-c_avail[49] = list(consultant_df)
-c_avail[50] = list(consultant_df)
+def reverse_availabilities(availabilities):
+    # reverse dictionaries
+    # consultant: [list of availabilities]
 
-lc_avail = lead_consultant_df.to_dict("index")
+    for avail in availabilities:
+        availabilities[avail] = [
+            x for x in availabilities[avail].keys() if availabilities[avail][x] != 0
+        ]
 
-for lead_consultant in lc_avail:
-    lc_avail[lead_consultant] = [
-        j for j in lc_avail[lead_consultant].keys() if lc_avail[lead_consultant][j] != 0
-    ]
+    return availabilities
+
+
+consultant_avail = reverse_availabilities(consultant_avail)
+lead_consultant_avail = reverse_availabilities(lead_consultant_avail)
+
+# create  2 fake consultants for a mvp.
+consultant_avail[49] = list(consultant_df)
+consultant_avail[50] = list(consultant_df)
 
 # The lead_consultant list is bigger than the consultant list. Subset accordingly
-for lead_consultant in lc_avail:
-    lc_avail[lead_consultant] = [
-        j for j in lc_avail[lead_consultant] if j in list(consultant_df)
+for lead_consultant in lead_consultant_avail:
+    lead_consultant_avail[lead_consultant] = [
+        j for j in lead_consultant_avail[lead_consultant] if j in list(consultant_df)
     ]
 
 
@@ -73,7 +77,7 @@ def avail_after(person, daytime):
     """
 
     def timesplit(s):
-        """Splits a time in format M13 to head and tail (M,13)"""
+        """Splits a time in format M13 to day and hour (M,13)"""
         head = s.rstrip("0123456789")
         tail = int(s[len(head) :])
         return head, tail
@@ -81,9 +85,11 @@ def avail_after(person, daytime):
     day, time = timesplit(daytime)
 
     weekday_index = {"M": 1, "T": 2, "W": 3, "TH": 4, "F": 5, "S": 6}
+
     not_same_day = len(
         [i for i in person if weekday_index[timesplit(i)[0]] > weekday_index[day]]
     )
+
     same_day = len(
         [
             i
@@ -95,64 +101,62 @@ def avail_after(person, daytime):
     return same_day + not_same_day
 
 
-# ## First Implementation:
-# * Fill by how many availabilities a student has after the day of the class, same logic for lead_consultant
-#
-# ## Proposed Implementaion:
-# * Fill by how many availabilities a student has of the REMAINING classes that have already been chosen. Same logic for lead_consultant. This is important as you already know the remaining classes.
-
-# Now we have to make a list of valid schedules
-
+# Now we have to make a list of possible combinations of timeslots
 max_schedule = [i for i in itertools.combinations(list(consultant_df), 5)]
 
-
 # With a given schedule of classes, assign lead consultants to each one.
-#
 # For each class, find out how many more classes of the 5 chosen each lead_consultant can still go to, and select the one with the least. So this is ignoring this class, and the classes in assignments.
-#
 # This needs to only iterate through the lead consultants who have not been assigned already.
 
 
-def validate(schedule):
+def validate(schedule, lead_consultant_avail):
     """Validates a set of five days.
     If valid, returns the assignment as a dictionary
-    If invalid, returns 0"""
+    If invalid, returns None"""
     assignments = {}
     for i in schedule:
         d = {}
-        for lead_consultant in lc_avail:
-            if lead_consultant in assignments.values():
-                pass
-            else:
-                # values we have to ignore
+
+        # assign classes for each lead consultant
+        for lead_consultant in lead_consultant_avail:
+
+            # only work through lc without classes already
+            if lead_consultant not in assignments.values():
+                # ignore already assigned classes
                 ignore = set(i).union(set(assignments.keys()))
-                # intersect lead_consultant availabilities with schedule
-                happy = set(lc_avail[lead_consultant]).intersection(schedule)
+
+                # find valid schedules for the current lead consultant
+                happy = set(lead_consultant_avail[lead_consultant]).intersection(
+                    schedule
+                )
+
+                # calculate the classes the lead consultant can take
                 d[lead_consultant] = happy - ignore
+
         if d:
             assignments[i] = min(d, key=d.get)
         else:
-            return 0
+            return None
     return assignments
 
 
 # Now to start greedyfilling consultants
 
 
-def fillclass(schedule):
+def fillclass(schedule, consultant_avail):
     # Going to need to flatten the classes (will be list of cons)
     flatten = lambda l: [item for sublist in l for item in sublist]
     assignments = {}
     for i in schedule:
         d = {}
-        for consultant in c_avail:
+        for consultant in consultant_avail:
             if consultant in flatten(assignments.values()):
                 pass
             else:
                 # values we have to ignore
                 ignore = set(i).union(set(assignments.keys()))
                 # intersect consultant availabilities with schedule
-                happy = set(c_avail[consultant]).intersection(schedule)
+                happy = set(consultant_avail[consultant]).intersection(schedule)
                 d[consultant] = happy - ignore
         if len(d) >= 10:
             # first make a list of the 10 consultants we want to take
@@ -163,14 +167,19 @@ def fillclass(schedule):
                 del d[min(d, key=d.get)]
             assignments[i] = l
         else:
-            return 0
+            return None
     return assignments
 
 
-fillclass(max_schedule[0])
+fillclass(max_schedule[0], consultant_avail)
 
-validate(max_schedule[0])
+validate(max_schedule[0], lead_consultant_avail)
 
-for i in max_schedule:
-    if not fillclass(i):
-        print(f"{i} doesn't work")
+final_schedules = []
+
+final_schedules = [
+    schedule for schedule in max_schedule if fillclass(schedule, consultant_avail)
+]
+
+# all of these are valid schedules
+print(final_schedules)

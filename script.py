@@ -2,40 +2,50 @@ import pandas as pd
 import numpy as np
 import itertools
 
-# Given an excel file with all of the LC availabilities and consultant availabilities, the goal of this code is to find schedules that work.
+# Given an excel file with all of the lead_consultant availabilities and consultant availabilities, the goal of this code is to find schedules that work.
 # Note that ideally we'd like to optimise groups for variety (), but I don't have access to that data
 
 # Importing files and saving as df
 
-lc_df = pd.read_excel("./data/lc.xls", header=1, index_col=0, skiprows=1, skipfooter=1)
-lc_df = lc_df.replace([np.nan, "?"], 0)
-lc_df = lc_df.replace("OK", 1)
+lead_consultant_df = pd.read_excel(
+    "./data/lead_consultant.xls", header=1, index_col=0, skiprows=1, skipfooter=1
+)
+lead_consultant_df = lead_consultant_df.replace([np.nan, "?"], 0)
+lead_consultant_df = lead_consultant_df.replace("OK", 1)
 
-lc_df = lc_df.astype(int)
+lead_consultant_df = lead_consultant_df.astype(int)
 
-c_df = pd.read_excel("./data/c.xls", header=0, index_col=0, skipfooter=1)
-c_df = c_df.replace("OK", 1)
-c_df = c_df.fillna(0)
+consultant_df = pd.read_excel(
+    "./data/consultant.xls", header=0, index_col=0, skipfooter=1
+)
+consultant_df = consultant_df.replace("OK", 1)
+consultant_df = consultant_df.fillna(0)
 
-c_df = c_df.astype(int)
+consultant_df = consultant_df.astype(int)
 
-c_avail = c_df.to_dict("index")
-for c in c_avail:
-    c_avail[c] = [j for j in c_avail[c].keys() if c_avail[c][j] != 0]
+c_avail = consultant_df.to_dict("index")
+for consultant in c_avail:
+    c_avail[consultant] = [
+        j for j in c_avail[consultant].keys() if c_avail[consultant][j] != 0
+    ]
 
 
 # Make 2 fake consultants for a mvp.
-c_avail[49] = list(c_df)
-c_avail[50] = list(c_df)
+c_avail[49] = list(consultant_df)
+c_avail[50] = list(consultant_df)
 
-lc_avail = lc_df.to_dict("index")
+lc_avail = lead_consultant_df.to_dict("index")
 
-for lc in lc_avail:
-    lc_avail[lc] = [j for j in lc_avail[lc].keys() if lc_avail[lc][j] != 0]
+for lead_consultant in lc_avail:
+    lc_avail[lead_consultant] = [
+        j for j in lc_avail[lead_consultant].keys() if lc_avail[lead_consultant][j] != 0
+    ]
 
-# The LC list is bigger than the C list. Subset accordingly
-for lc in lc_avail:
-    lc_avail[lc] = [j for j in lc_avail[lc] if j in list(c_df)]
+# The lead_consultant list is bigger than the consultant list. Subset accordingly
+for lead_consultant in lc_avail:
+    lc_avail[lead_consultant] = [
+        j for j in lc_avail[lead_consultant] if j in list(consultant_df)
+    ]
 
 
 # Make a function to find the number of days a person is available AFTER the selected class (cause going to greedyfill in sorted order)
@@ -78,19 +88,19 @@ def avail_after(person, daytime):
 
 
 # ## First Implementation:
-# * Fill by how many availabilities a student has after the day of the class, same logic for LC
+# * Fill by how many availabilities a student has after the day of the class, same logic for lead_consultant
 #
 # ## Proposed Implementaion:
-# * Fill by how many availabilities a student has of the REMAINING classes that have already been chosen. Same logic for LC. This is important as you already know the remaining classes.
+# * Fill by how many availabilities a student has of the REMAINING classes that have already been chosen. Same logic for lead_consultant. This is important as you already know the remaining classes.
 
 # Now we have to make a list of valid schedules
 
-max_schedule = [i for i in itertools.combinations(list(c_df), 5)]
+max_schedule = [i for i in itertools.combinations(list(consultant_df), 5)]
 
 
 # With a given schedule of classes, assign lead consultants to each one.
 #
-# For each class, find out how many more classes of the 5 chosen each LC can still go to, and select the one with the least. So this is ignoring this class, and the classes in assignments.
+# For each class, find out how many more classes of the 5 chosen each lead_consultant can still go to, and select the one with the least. So this is ignoring this class, and the classes in assignments.
 #
 # This needs to only iterate through the lead consultants who have not been assigned already.
 
@@ -102,15 +112,15 @@ def validate(schedule):
     assignments = {}
     for i in schedule:
         d = {}
-        for lc in lc_avail:
-            if lc in assignments.values():
+        for lead_consultant in lc_avail:
+            if lead_consultant in assignments.values():
                 pass
             else:
                 # values we have to ignore
                 ignore = set(i).union(set(assignments.keys()))
-                # intersect LC availabilities with schedule
-                happy = set(lc_avail[lc]).intersection(schedule)
-                d[lc] = happy - ignore
+                # intersect lead_consultant availabilities with schedule
+                happy = set(lc_avail[lead_consultant]).intersection(schedule)
+                d[lead_consultant] = happy - ignore
         if d:
             assignments[i] = min(d, key=d.get)
         else:
@@ -127,15 +137,15 @@ def fillclass(schedule):
     assignments = {}
     for i in schedule:
         d = {}
-        for c in c_avail:
-            if c in flatten(assignments.values()):
+        for consultant in c_avail:
+            if consultant in flatten(assignments.values()):
                 pass
             else:
                 # values we have to ignore
                 ignore = set(i).union(set(assignments.keys()))
-                # intersect C availabilities with schedule
-                happy = set(c_avail[c]).intersection(schedule)
-                d[c] = happy - ignore
+                # intersect consultant availabilities with schedule
+                happy = set(c_avail[consultant]).intersection(schedule)
+                d[consultant] = happy - ignore
         if len(d) >= 10:
             # first make a list of the 10 consultants we want to take
             # this is done by finding the smallest and popping from d 10x

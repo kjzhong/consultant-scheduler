@@ -7,23 +7,31 @@ import itertools
 
 # Importing files and saving as df
 
+
+def process_data(df):
+    df = df.replace([np.nan, "?"], 0)
+    df = df.replace("OK", 1)
+    df = df.astype(int)
+
+    return df
+
+
+# Read the data
 lead_consultant_df = pd.read_excel(
     "./data/lead_consultant.xls", header=1, index_col=0, skiprows=1, skipfooter=1
 )
-lead_consultant_df = lead_consultant_df.replace([np.nan, "?"], 0)
-lead_consultant_df = lead_consultant_df.replace("OK", 1)
-
-lead_consultant_df = lead_consultant_df.astype(int)
 
 consultant_df = pd.read_excel(
     "./data/consultant.xls", header=0, index_col=0, skipfooter=1
 )
-consultant_df = consultant_df.replace("OK", 1)
-consultant_df = consultant_df.fillna(0)
 
-consultant_df = consultant_df.astype(int)
+# Process the data
+lead_consultant_df = process_data(lead_consultant_df)
+consultant_df = process_data(consultant_df)
 
+# print(consultant_df)
 c_avail = consultant_df.to_dict("index")
+
 for consultant in c_avail:
     c_avail[consultant] = [
         j for j in c_avail[consultant].keys() if c_avail[consultant][j] != 0

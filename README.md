@@ -1,10 +1,13 @@
 # Consultant scheduler
 This is a script to create a schedule matching classes with consultants (or interviewers with interviewees) given an input of schedules.
 
-# Installation
+# Installation and usage
 ```bash
-pip install pipenv
-pipenv install
+python3 -m venv .venv
+.venv\Scripts\activate.bat
+pip install -r requirements.txt
+
+python3 script.py
 ```
 
 # Why does this exist?
